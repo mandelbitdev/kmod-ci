@@ -1,0 +1,201 @@
+---
+name: out-of-tree virtme-ng matrix
+
+"on":
+  workflow_call:
+    inputs:
+      ci-repository:
+        description: Repository containing this shared CI workflow.
+        required: false
+        type: string
+        default: ralflici/ovpn-kmod-ci
+      ci-ref:
+        description: Ref to check out from ci-repository.
+        required: false
+        type: string
+        default: main
+      vng-repository:
+        description: Repository containing the virtme-ng tree to test.
+        required: false
+        type: string
+        default: ralflici/virtme-ng
+      vng-ref:
+        description: Ref to check out from vng-repository.
+        required: false
+        type: string
+        default: kmod-ci-virtiofs-fixes
+      cache-prefix:
+        description: Prefix for successful scheduled-run cache entries.
+        required: true
+        type: string
+      distros:
+        description: JSON array of distro targets to test.
+        required: false
+        type: string
+        default: >-
+          ["debian-10","debian-11","debian-12","debian-13",
+          "ubuntu-20.04","ubuntu-22.04","ubuntu-24.04",
+          "ubuntu-25.10","ubuntu-26.04","fedora-44",
+          "rhel-8","rhel-9","rhel-10",
+          "opensuse-leap-15.6","opensuse-leap-16.0",
+          "opensuse-tumbleweed"]
+      guest-script:
+        description: Executable script in the caller repo to run inside the VM.
+        required: true
+        type: string
+      prepare-command:
+        description: Optional caller-repo command to run before booting the VM.
+        required: false
+        type: string
+        default: ""
+      timeout-minutes:
+        description: Per-target job timeout.
+        required: false
+        type: number
+        default: 30
+    secrets:
+      RHEL_ORG_ID:
+        required: false
+      RHEL_ACTIVATION_KEY:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  vng:
+    name: ${{ matrix.distro }} rootfs
+    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: ${{ fromJSON(inputs.distros) }}
+
+    steps:
+      - name: Checkout caller repository
+        uses: actions/checkout@v5
+        with:
+          path: repo
+
+      - name: Checkout shared CI
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ inputs.ci-repository }}
+          ref: ${{ inputs.ci-ref }}
+          path: kmod-ci
+
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            busybox-static \
+            ca-certificates \
+            cpio \
+            debian-archive-keyring \
+            dnf \
+            git \
+            make \
+            mmdebstrap \
+            qemu-system-x86 \
+            qemu-utils \
+            rsync \
+            ubuntu-keyring \
+            virtiofsd \
+            virtme-ng
+
+      - name: Checkout virtme-ng
+        run: |
+          git clone \
+            --depth 1 \
+            --branch "${{ inputs.vng-ref }}" \
+            "https://github.com/${{ inputs.vng-repository }}.git" \
+            "${RUNNER_TEMP}/virtme-ng"
+          git -C "${RUNNER_TEMP}/virtme-ng" rev-parse HEAD
+
+      - name: Build ${{ matrix.distro }} rootfs
+        env:
+          # RHEL differs from the public targets: rootfs-build.sh uses these
+          # secrets inside a temporary UBI container to authenticate against
+          # Red Hat CDN and generate the rootfs.
+          RHEL_ORG_ID: ${{ secrets.RHEL_ORG_ID }}
+          RHEL_ACTIVATION_KEY: ${{ secrets.RHEL_ACTIVATION_KEY }}
+        run: |
+          sudo --preserve-env=RHEL_ORG_ID,RHEL_ACTIVATION_KEY \
+            ./kmod-ci/scripts/rootfs-build.sh \
+            "${{ matrix.distro }}" \
+            "${RUNNER_TEMP}/rootfs/${{ matrix.distro }}"
+
+      - name: Compute rootfs fingerprint
+        id: rootfs-fingerprint
+        run: |
+          # Build-rootfs is the source of truth for package selection. Compute
+          # the scheduled-run cache key from the actual kernel it installed.
+          fingerprint=$(./kmod-ci/scripts/rootfs-fingerprint.sh \
+            "${{ matrix.distro }}" \
+            "${RUNNER_TEMP}/rootfs/${{ matrix.distro }}" \
+            "${GITHUB_SHA}")
+          echo "hash=${fingerprint}" >> "${GITHUB_OUTPUT}"
+
+      - name: Check previous scheduled result
+        if: github.event_name == 'schedule'
+        id: result-cache
+        uses: actions/cache/restore@v5
+        with:
+          # Scheduled runs only need to rerun the caller payload when this exact
+          # repo revision has not already passed with the generated rootfs.
+          path: ${{ runner.temp }}/vng-cache/${{ matrix.distro }}
+          key: >-
+            ${{ inputs.cache-prefix }}-${{ matrix.distro }}-${{
+            steps.rootfs-fingerprint.outputs.hash }}
+          lookup-only: true
+
+      - name: Skip unchanged scheduled target
+        if: >-
+          github.event_name == 'schedule' &&
+          steps.result-cache.outputs.cache-hit == 'true'
+        run: |
+          # The payload step is skipped by its own 'if:' condition; this step
+          # just leaves an explicit log message.
+          echo "${{ matrix.distro }} already passed for this rootfs fingerprint"
+
+      - name: Prepare caller repository
+        if: >-
+          steps.result-cache.outputs.cache-hit != 'true' &&
+          inputs.prepare-command != ''
+        working-directory: repo
+        run: ${{ inputs.prepare-command }}
+
+      - name: Run payload in ${{ matrix.distro }}
+        if: steps.result-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo env VNG="${RUNNER_TEMP}/virtme-ng/vng" \
+            ./kmod-ci/scripts/run-guest.sh \
+            "${{ matrix.distro }}" \
+            "${RUNNER_TEMP}/rootfs/${{ matrix.distro }}" \
+            "${GITHUB_WORKSPACE}/repo" \
+            "${{ inputs.guest-script }}"
+
+      - name: Record successful scheduled result
+        if: >-
+          github.event_name == 'schedule' &&
+          steps.result-cache.outputs.cache-hit != 'true'
+        run: |
+          # Save a tiny marker only after the scheduled payload passes.
+          cache_dir="${RUNNER_TEMP}/vng-cache/${{ matrix.distro }}"
+          mkdir -p "${cache_dir}"
+          printf '%s\n' \
+            "${{ steps.rootfs-fingerprint.outputs.hash }}" \
+            > "${cache_dir}/fingerprint"
+
+      - name: Save successful scheduled result
+        if: >-
+          github.event_name == 'schedule' &&
+          steps.result-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ runner.temp }}/vng-cache/${{ matrix.distro }}
+          key: >-
+            ${{ inputs.cache-prefix }}-${{ matrix.distro }}-${{
+            steps.rootfs-fingerprint.outputs.hash }}
