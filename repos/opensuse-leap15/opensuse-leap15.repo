@@ -2,20 +2,30 @@
 # Based on the openSUSE Leap repo index:
 # https://github.com/openSUSE/openSUSE-repos/raw/refs/heads/main/opensuse-leap-repoindex.xml
 #
-# DNF cannot verify package signatures before the openSUSE RPM keys are
-# installed in the rootfs, so verify repository metadata during bootstrap.
+# Leap 15.6 still points at expired copies of these keys, but the same key
+# IDs are published with current expiry in Tumbleweed and still verify Leap
+# 15.6 metadata and packages.
+# The Backports OBS key is also needed for packages with bp156 release tags.
 [repo-oss]
 name=openSUSE Leap $releasever OSS
 baseurl=https://cdn.opensuse.org/distribution/leap/$releasever/repo/oss/
 enabled=1
-gpgcheck=0
+gpgcheck=1
 repo_gpgcheck=1
-gpgkey=https://cdn.opensuse.org/distribution/leap/$releasever/repo/oss/repodata/repomd.xml.key
+gpgkey=https://cdn.opensuse.org/tumbleweed/repo/oss/repodata/repomd.xml.key
+       https://cdn.opensuse.org/tumbleweed/repo/oss/gpg-pubkey-39db7c82-66c5d91a.asc
+       https://cdn.opensuse.org/tumbleweed/repo/oss/gpg-pubkey-3fa1d6ce-67c856ee.asc
+       https://cdn.opensuse.org/tumbleweed/repo/oss/gpg-pubkey-09d9ea69-68595a8c.asc
+       https://cdn.opensuse.org/distribution/leap/$releasever/repo/oss/gpg-pubkey-25db7ae0-645bae34.asc
 
 [repo-update-oss]
 name=openSUSE Leap $releasever OSS Updates
 baseurl=https://cdn.opensuse.org/update/leap/$releasever/oss/
 enabled=1
-gpgcheck=0
+gpgcheck=1
 repo_gpgcheck=1
-gpgkey=https://cdn.opensuse.org/update/leap/$releasever/oss/repodata/repomd.xml.key
+gpgkey=https://cdn.opensuse.org/tumbleweed/repo/oss/repodata/repomd.xml.key
+       https://cdn.opensuse.org/tumbleweed/repo/oss/gpg-pubkey-39db7c82-66c5d91a.asc
+       https://cdn.opensuse.org/tumbleweed/repo/oss/gpg-pubkey-3fa1d6ce-67c856ee.asc
+       https://cdn.opensuse.org/tumbleweed/repo/oss/gpg-pubkey-09d9ea69-68595a8c.asc
+       https://cdn.opensuse.org/distribution/leap/$releasever/repo/oss/gpg-pubkey-25db7ae0-645bae34.asc
