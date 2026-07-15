@@ -88,23 +88,34 @@ jobs:
 
       - name: Install host dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            busybox-static \
-            ca-certificates \
-            cpio \
-            debian-archive-keyring \
-            dnf \
-            git \
-            make \
-            mmdebstrap \
-            qemu-system-x86 \
-            qemu-utils \
-            rpm \
-            rsync \
-            ubuntu-keyring \
-            virtiofsd \
-            virtme-ng
+          for attempt in 1 2 3; do
+            if sudo apt-get update &&
+              sudo apt-get install -y --no-install-recommends \
+                busybox-static \
+                ca-certificates \
+                cpio \
+                debian-archive-keyring \
+                dnf \
+                git \
+                make \
+                mmdebstrap \
+                qemu-system-x86 \
+                qemu-utils \
+                rpm \
+                rsync \
+                ubuntu-keyring \
+                virtiofsd \
+                virtme-ng; then
+              break
+            fi
+
+            if [ "${attempt}" -eq 3 ]; then
+              exit 1
+            fi
+
+            echo "Host dependency install failed; retrying" >&2
+            sleep 30
+          done
 
       - name: Checkout virtme-ng
         run: |

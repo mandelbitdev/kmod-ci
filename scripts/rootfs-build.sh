@@ -27,6 +27,9 @@ fi
 
 mkdir -p "$(dirname "${rootfs}")"
 
+rootfs_build_attempts="${ROOTFS_BUILD_ATTEMPTS:-3}"
+rootfs_build_retry_delay="${ROOTFS_BUILD_RETRY_DELAY:-30}"
+
 build_debian_10() {
 	build_debian \
 		buster \
@@ -240,6 +243,35 @@ umount_dnf_rootfs() {
 	umount -R "${rootfs}/dev" 2>/dev/null || true
 }
 
+rootfs_has_mounts() {
+	local mount
+
+	for mount in dev proc sys run; do
+		if mountpoint -q "${rootfs}/${mount}"; then
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+cleanup_failed_rootfs() {
+	if [ ! -e "${rootfs}" ]; then
+		return 0
+	fi
+
+	# Retry from a clean installroot. DNF-based builds may leave these
+	# mounted if the failure happens before the normal cleanup path.
+	umount_dnf_rootfs
+
+	if rootfs_has_mounts; then
+		echo "Refusing to remove ${rootfs}: mountpoints still active" >&2
+		return 1
+	fi
+
+	rm -rf --one-file-system -- "${rootfs}"
+}
+
 build_dnf() {
 	local repo_dir="$1"
 	local releasever="$2"
@@ -408,6 +440,7 @@ require_rhel_secret() {
 run_rhel_builder_container() {
 	local releasever="$1"
 	local image="registry.access.redhat.com/ubi${releasever}/ubi:latest"
+	local attempt
 	local repo_root
 	local rootfs_parent
 
@@ -420,6 +453,19 @@ run_rhel_builder_container() {
 		echo "RHEL rootfs generation requires docker on the runner." >&2
 		exit 1
 	fi
+
+	for attempt in 1 2 3; do
+		if docker pull "${image}"; then
+			break
+		fi
+
+		if [ "${attempt}" -eq 3 ]; then
+			return 1
+		fi
+
+		echo "Failed to pull ${image}; retrying" >&2
+		sleep "${rootfs_build_retry_delay}"
+	done
 
 	docker run --rm --privileged \
 		-e RHEL_ACTIVATION_KEY \
@@ -502,7 +548,7 @@ build_rhel() {
 	# this script inside UBI where subscription-manager is available.
 	if [ "${RHEL_BUILDER_CONTAINER:-0}" -ne 1 ]; then
 		run_rhel_builder_container "${releasever}"
-		exit 0
+		return
 	fi
 
 	# Check if the key is available to subscription-manager in the
@@ -620,69 +666,113 @@ build_opensuse() {
 		> "${rootfs}/etc/modprobe.d/10-unsupported-modules.conf"
 }
 
-case "${distro}" in
-debian-10)
-	build_debian_10
-	;;
-debian-11)
-	build_debian_11
-	;;
-debian-12)
-	build_debian_12
-	;;
-debian-13)
-	build_debian_13
-	;;
-ubuntu-20.04)
-	build_ubuntu_2004
-	;;
-ubuntu-22.04)
-	build_ubuntu_2204
-	;;
-ubuntu-24.04)
-	build_ubuntu_2404
-	;;
-ubuntu-25.10)
-	build_ubuntu_2510
-	;;
-ubuntu-26.04)
-	build_ubuntu_2604
-	;;
-fedora-44)
-	build_fedora_44
-	;;
-alma-8)
-	build_alma 8
-	;;
-alma-9)
-	build_alma 9
-	;;
-alma-10)
-	build_alma 10
-	;;
-rhel-8)
-	build_rhel 8
-	;;
-rhel-9)
-	build_rhel 9
-	;;
-rhel-10)
-	build_rhel 10
-	;;
-opensuse-leap-15.6)
-	build_opensuse_leap 15.6
-	;;
-opensuse-leap-16.0)
-	build_opensuse_leap 16.0
-	;;
-opensuse-tumbleweed)
-	build_opensuse_tumbleweed
-	;;
-*)
-	echo "Unsupported target: ${distro}" >&2
-	usage
-	;;
-esac
+build_target() {
+	case "${distro}" in
+	debian-10)
+		build_debian_10
+		;;
+	debian-11)
+		build_debian_11
+		;;
+	debian-12)
+		build_debian_12
+		;;
+	debian-13)
+		build_debian_13
+		;;
+	ubuntu-20.04)
+		build_ubuntu_2004
+		;;
+	ubuntu-22.04)
+		build_ubuntu_2204
+		;;
+	ubuntu-24.04)
+		build_ubuntu_2404
+		;;
+	ubuntu-25.10)
+		build_ubuntu_2510
+		;;
+	ubuntu-26.04)
+		build_ubuntu_2604
+		;;
+	fedora-44)
+		build_fedora_44
+		;;
+	alma-8)
+		build_alma 8
+		;;
+	alma-9)
+		build_alma 9
+		;;
+	alma-10)
+		build_alma 10
+		;;
+	rhel-8)
+		build_rhel 8
+		;;
+	rhel-9)
+		build_rhel 9
+		;;
+	rhel-10)
+		build_rhel 10
+		;;
+	opensuse-leap-15.6)
+		build_opensuse_leap 15.6
+		;;
+	opensuse-leap-16.0)
+		build_opensuse_leap 16.0
+		;;
+	opensuse-tumbleweed)
+		build_opensuse_tumbleweed
+		;;
+	*)
+		echo "Unsupported target: ${distro}" >&2
+		usage
+		;;
+	esac
+}
+
+build_with_retries() {
+	local attempt rc
+
+	# RHEL re-executes this script inside UBI. Retry the actual rootfs build
+	# there, not the outer container launcher.
+	if [[ "${distro}" = rhel-* && "${RHEL_BUILDER_CONTAINER:-0}" -ne 1 ]]; then
+		rootfs_build_attempts=1
+	fi
+
+	for ((attempt = 1; attempt <= rootfs_build_attempts; attempt++)); do
+		echo "Building ${distro} rootfs (attempt ${attempt}/${rootfs_build_attempts})"
+
+		# Do not call build_target directly in an if condition: bash
+		# suppresses errexit in functions evaluated as conditionals, so
+		# a failing package manager command could be ignored by later
+		# commands in the same build function. Run the build in a
+		# subshell with errexit enabled and capture only the subshell's
+		# final status here.
+		set +e
+		(
+			set -e
+			build_target
+		)
+		rc=$?
+		set -e
+
+		if [ "${rc}" -eq 0 ]; then
+			return 0
+		fi
+
+		if [ "${attempt}" -eq "${rootfs_build_attempts}" ]; then
+			return "${rc}"
+		fi
+
+		echo "Rootfs build failed with exit code ${rc}; retrying" >&2
+		cleanup_failed_rootfs
+		sleep "${rootfs_build_retry_delay}"
+	done
+}
+
+build_with_retries
 
 kernel=$(rootfs_find_kernel_image "${rootfs}")
 
