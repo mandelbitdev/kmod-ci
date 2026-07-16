@@ -18,12 +18,12 @@ name: out-of-tree virtme-ng matrix
         description: Repository containing the virtme-ng tree to test.
         required: false
         type: string
-        default: ralflici/virtme-ng
+        default: arighi/virtme-ng
       vng-ref:
         description: Ref to check out from vng-repository.
         required: false
         type: string
-        default: kmod-ci-virtiofs-fixes
+        default: main
       cache-prefix:
         description: Prefix for successful scheduled-run cache entries.
         required: true
