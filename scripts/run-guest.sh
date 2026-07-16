@@ -79,6 +79,9 @@ fi
 if [ "${VNG_VERBOSE:-1}" = "1" ]; then
 	vng_args+=(--verbose)
 fi
+# The test rootfs does not need POSIX ACLs, and some guest kernels fail to
+# negotiate them on the root virtiofs export.
+vng_args+=(--no-root-posix-acl)
 if [ "${force_9p}" -eq 1 ]; then
 	echo "Forcing 9p rootfs in vng"
 	vng_args+=(--force-9p)
