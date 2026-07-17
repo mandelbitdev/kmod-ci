@@ -5,15 +5,15 @@ name: out-of-tree virtme-ng matrix
   workflow_call:
     inputs:
       ci-repository:
-        description: Repository containing this shared CI workflow.
+        description: Deprecated; accepted for compatibility and ignored.
         required: false
         type: string
-        default: ralflici/ovpn-kmod-ci
+        default: ""
       ci-ref:
-        description: Ref to check out from ci-repository.
+        description: Deprecated; accepted for compatibility and ignored.
         required: false
         type: string
-        default: main
+        default: ""
       vng-repository:
         description: Repository containing the virtme-ng tree to test.
         required: false
@@ -107,8 +107,8 @@ jobs:
       - name: Checkout shared CI
         uses: actions/checkout@v5
         with:
-          repository: ${{ inputs.ci-repository }}
-          ref: ${{ inputs.ci-ref }}
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
           path: kmod-ci
 
       - name: Install host dependencies
