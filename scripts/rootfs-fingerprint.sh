@@ -20,6 +20,20 @@ fi
 target="$1"
 rootfs="$2"
 repo_sha="$3"
+target_arch="${KMOD_CI_ARCH:-$(uname -m)}"
+
+case "${target_arch}" in
+x86_64|amd64)
+	target_arch=x86_64
+	;;
+aarch64|arm64)
+	target_arch=arm64
+	;;
+*)
+	echo "Unsupported architecture: ${target_arch}" >&2
+	exit 1
+	;;
+esac
 
 kernel=$(rootfs_find_kernel_image "${rootfs}")
 if [ -z "${kernel}" ]; then
@@ -30,9 +44,11 @@ fi
 kernel_release=$(rootfs_kernel_release "${kernel}")
 
 # The fingerprint accounts for the target name, ovpn-backports HEAD commit,
-# and the kernel release selected from the target rootfs.
+# the selected architecture, and the kernel release selected from the target
+# rootfs.
 fingerprint_metadata=$(cat <<-EOF
 target=${target}
+arch=${target_arch}
 repo=${repo_sha}
 kernel=${kernel_release}
 EOF

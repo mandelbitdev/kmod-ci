@@ -39,6 +39,11 @@ name: out-of-tree virtme-ng matrix
           "rhel-8","rhel-9","rhel-10",
           "opensuse-leap-15.6","opensuse-leap-16.0",
           "opensuse-tumbleweed"]
+      arch:
+        description: Host and guest architecture to test.
+        required: false
+        type: string
+        default: x86_64
       guest-script:
         description: Executable script in the caller repo to run inside the VM.
         required: true
@@ -64,16 +69,36 @@ permissions:
 
 jobs:
   vng:
-    name: ${{ matrix.distro }} rootfs
-    runs-on: ubuntu-24.04
+    name: ${{ matrix.distro }} ${{ matrix.arch }} rootfs
+    runs-on: >-
+      ${{
+      matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04'
+      }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
 
     strategy:
       fail-fast: false
       matrix:
+        arch: ["${{ inputs.arch }}"]
         distro: ${{ fromJSON(inputs.distros) }}
+        exclude:
+          # Leap 16.0 arm64 currently redirects repository metadata payloads
+          # to broken mirrors, so keep x86_64 coverage and skip only arm64.
+          - arch: arm64
+            distro: opensuse-leap-16.0
 
     steps:
+      - name: Validate architecture
+        run: |
+          case "${{ matrix.arch }}" in
+          x86_64|arm64)
+            ;;
+          *)
+            echo "Unsupported architecture: ${{ matrix.arch }}" >&2
+            exit 1
+            ;;
+          esac
+
       - name: Checkout caller repository
         uses: actions/checkout@v5
         with:
@@ -88,6 +113,15 @@ jobs:
 
       - name: Install host dependencies
         run: |
+          case "${{ matrix.arch }}" in
+          x86_64)
+            qemu_system=qemu-system-x86
+            ;;
+          arm64)
+            qemu_system=qemu-system-arm
+            ;;
+          esac
+
           for attempt in 1 2 3; do
             if sudo apt-get update &&
               sudo apt-get install -y --no-install-recommends \
@@ -99,13 +133,14 @@ jobs:
                 git \
                 make \
                 mmdebstrap \
-                qemu-system-x86 \
+                "${qemu_system}" \
                 qemu-utils \
                 rpm \
                 rsync \
                 ubuntu-keyring \
                 virtiofsd \
-                virtme-ng; then
+                virtme-ng \
+                zstd; then
               break
             fi
 
@@ -128,25 +163,31 @@ jobs:
 
       - name: Build ${{ matrix.distro }} rootfs
         env:
+          KMOD_CI_ARCH: ${{ matrix.arch }}
+          ROOTFS_PARENT: ${{ runner.temp }}/rootfs/${{ matrix.arch }}
           # RHEL differs from the public targets: rootfs-build.sh uses these
           # secrets inside a temporary UBI container to authenticate against
           # Red Hat CDN and generate the rootfs.
           RHEL_ORG_ID: ${{ secrets.RHEL_ORG_ID }}
           RHEL_ACTIVATION_KEY: ${{ secrets.RHEL_ACTIVATION_KEY }}
         run: |
-          sudo --preserve-env=RHEL_ORG_ID,RHEL_ACTIVATION_KEY \
+          preserve_env=KMOD_CI_ARCH,RHEL_ORG_ID,RHEL_ACTIVATION_KEY
+          sudo --preserve-env="${preserve_env}" \
             ./kmod-ci/scripts/rootfs-build.sh \
             "${{ matrix.distro }}" \
-            "${RUNNER_TEMP}/rootfs/${{ matrix.distro }}"
+            "${ROOTFS_PARENT}/${{ matrix.distro }}"
 
       - name: Compute rootfs fingerprint
         id: rootfs-fingerprint
+        env:
+          KMOD_CI_ARCH: ${{ matrix.arch }}
+          ROOTFS_PARENT: ${{ runner.temp }}/rootfs/${{ matrix.arch }}
         run: |
           # Build-rootfs is the source of truth for package selection. Compute
           # the scheduled-run cache key from the actual kernel it installed.
           fingerprint=$(./kmod-ci/scripts/rootfs-fingerprint.sh \
             "${{ matrix.distro }}" \
-            "${RUNNER_TEMP}/rootfs/${{ matrix.distro }}" \
+            "${ROOTFS_PARENT}/${{ matrix.distro }}" \
             "${GITHUB_SHA}")
           echo "hash=${fingerprint}" >> "${GITHUB_OUTPUT}"
 
@@ -157,10 +198,16 @@ jobs:
         with:
           # Scheduled runs only need to rerun the caller payload when this exact
           # repo revision has not already passed with the generated rootfs.
-          path: ${{ runner.temp }}/vng-cache/${{ matrix.distro }}
+          path: >-
+            ${{ runner.temp }}/vng-cache/${{ matrix.arch }}/${{ matrix.distro }}
           key: >-
-            ${{ inputs.cache-prefix }}-${{ matrix.distro }}-${{
-            steps.rootfs-fingerprint.outputs.hash }}
+            ${{
+            format('{0}-{1}-{2}-{3}',
+            inputs.cache-prefix,
+            matrix.arch,
+            matrix.distro,
+            steps.rootfs-fingerprint.outputs.hash)
+            }}
           lookup-only: true
 
       - name: Skip unchanged scheduled target
@@ -181,11 +228,16 @@ jobs:
 
       - name: Run payload in ${{ matrix.distro }}
         if: steps.result-cache.outputs.cache-hit != 'true'
+        env:
+          KMOD_CI_ARCH: ${{ matrix.arch }}
+          ROOTFS_PARENT: ${{ runner.temp }}/rootfs/${{ matrix.arch }}
         run: |
-          sudo env VNG="${RUNNER_TEMP}/virtme-ng/vng" \
+          sudo env \
+            KMOD_CI_ARCH="${KMOD_CI_ARCH}" \
+            VNG="${RUNNER_TEMP}/virtme-ng/vng" \
             ./kmod-ci/scripts/run-guest.sh \
             "${{ matrix.distro }}" \
-            "${RUNNER_TEMP}/rootfs/${{ matrix.distro }}" \
+            "${ROOTFS_PARENT}/${{ matrix.distro }}" \
             "${GITHUB_WORKSPACE}/repo" \
             "${{ inputs.guest-script }}"
 
@@ -195,7 +247,8 @@ jobs:
           steps.result-cache.outputs.cache-hit != 'true'
         run: |
           # Save a tiny marker only after the scheduled payload passes.
-          cache_dir="${RUNNER_TEMP}/vng-cache/${{ matrix.distro }}"
+          cache_dir="${RUNNER_TEMP}/vng-cache/${{ matrix.arch }}"
+          cache_dir="${cache_dir}/${{ matrix.distro }}"
           mkdir -p "${cache_dir}"
           printf '%s\n' \
             "${{ steps.rootfs-fingerprint.outputs.hash }}" \
@@ -207,7 +260,13 @@ jobs:
           steps.result-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
-          path: ${{ runner.temp }}/vng-cache/${{ matrix.distro }}
+          path: >-
+            ${{ runner.temp }}/vng-cache/${{ matrix.arch }}/${{ matrix.distro }}
           key: >-
-            ${{ inputs.cache-prefix }}-${{ matrix.distro }}-${{
-            steps.rootfs-fingerprint.outputs.hash }}
+            ${{
+            format('{0}-{1}-{2}-{3}',
+            inputs.cache-prefix,
+            matrix.arch,
+            matrix.distro,
+            steps.rootfs-fingerprint.outputs.hash)
+            }}

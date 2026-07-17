@@ -59,6 +59,22 @@ The default matrix uses real RHEL targets instead of AlmaLinux. AlmaLinux
 targets are still supported by the scripts and can be enabled by overriding the
 `distros` input.
 
+The workflow defaults to `x86_64`. To test arm64, add a separate caller job
+with `arch: arm64` and an explicit `distros` list, for example:
+
+```yaml
+    with:
+      arch: arm64
+      cache-prefix: ovpn-backports-arm64
+      distros: '["debian-12","ubuntu-24.04"]'
+      guest-script: ci/run-build.sh
+      prepare-command: ./backports-ctl.sh get-ovpn -t
+```
+
+GitHub-hosted arm64 runners do not currently expose nested KVM, so arm64
+guests run under QEMU emulation. Keep arm64 jobs build-only unless the caller is
+prepared for much longer runtime.
+
 ## Guest scripts
 
 The guest script path is relative to the caller repository and must be
