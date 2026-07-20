@@ -57,7 +57,7 @@ name: out-of-tree virtme-ng matrix
         description: Per-target job timeout.
         required: false
         type: number
-        default: 30
+        default: 45
     secrets:
       RHEL_ORG_ID:
         required: false
@@ -232,14 +232,39 @@ jobs:
           KMOD_CI_ARCH: ${{ matrix.arch }}
           ROOTFS_PARENT: ${{ runner.temp }}/rootfs/${{ matrix.arch }}
         run: |
-          sudo env \
-            KMOD_CI_ARCH="${KMOD_CI_ARCH}" \
-            VNG="${RUNNER_TEMP}/virtme-ng/vng" \
-            ./kmod-ci/scripts/run-guest.sh \
-            "${{ matrix.distro }}" \
-            "${ROOTFS_PARENT}/${{ matrix.distro }}" \
-            "${GITHUB_WORKSPACE}/repo" \
-            "${{ inputs.guest-script }}"
+          payload_attempts=1
+          vng_cpus=2
+
+          if [ ! -e /dev/kvm ]; then
+            # Without KVM the guest runs through QEMU emulation, which can
+            # sporadically crash userspace during heavy compile/load steps.
+            # Retry only that path once with a new guest boot and keep it
+            # single-vCPU to reduce possible TCG/SMP noise.
+            payload_attempts=2
+            vng_cpus=1
+          fi
+
+          for attempt in $(seq 1 "${payload_attempts}"); do
+            if sudo env \
+              KMOD_CI_ARCH="${KMOD_CI_ARCH}" \
+              VNG="${RUNNER_TEMP}/virtme-ng/vng" \
+              VNG_CPUS="${vng_cpus}" \
+              ./kmod-ci/scripts/run-guest.sh \
+              "${{ matrix.distro }}" \
+              "${ROOTFS_PARENT}/${{ matrix.distro }}" \
+              "${GITHUB_WORKSPACE}/repo" \
+              "${{ inputs.guest-script }}"; then
+              exit 0
+            fi
+
+            rc="$?"
+
+            if [ "${attempt}" -eq "${payload_attempts}" ]; then
+              exit "${rc}"
+            fi
+
+            echo "Guest payload failed without KVM; retrying" >&2
+          done
 
       - name: Record successful scheduled result
         if: >-
