@@ -9,7 +9,7 @@
 # installed in the rootfs, so verify repository metadata during bootstrap.
 [repo-oss]
 name=openSUSE Tumbleweed OSS
-baseurl=https://cdn.opensuse.org/ports/aarch64/tumbleweed/repo/oss/
+metalink=https://download.opensuse.org/ports/aarch64/tumbleweed/repo/oss/repodata/repomd.xml.metalink
 enabled=1
 gpgcheck=0
 repo_gpgcheck=1
@@ -17,7 +17,7 @@ gpgkey=https://cdn.opensuse.org/ports/aarch64/tumbleweed/repo/oss/repodata/repom
 
 [repo-update]
 name=openSUSE Tumbleweed Updates
-baseurl=https://cdn.opensuse.org/ports/aarch64/update/tumbleweed/
+metalink=https://download.opensuse.org/ports/aarch64/update/tumbleweed/repodata/repomd.xml.metalink
 enabled=1
 gpgcheck=0
 repo_gpgcheck=1

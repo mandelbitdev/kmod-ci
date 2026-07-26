@@ -4,28 +4,28 @@
 # AlmaLinux 9/10 use CRB; AlmaLinux 8 uses PowerTools instead.
 [baseos]
 name=AlmaLinux $releasever - BaseOS
-baseurl=https://repo.almalinux.org/almalinux/$releasever/BaseOS/$basearch/os/
+mirrorlist=https://mirrors.almalinux.org/mirrorlist/$releasever/baseos
 enabled=1
 gpgcheck=1
 gpgkey=https://repo.almalinux.org/almalinux/RPM-GPG-KEY-AlmaLinux-$releasever
 
 [appstream]
 name=AlmaLinux $releasever - AppStream
-baseurl=https://repo.almalinux.org/almalinux/$releasever/AppStream/$basearch/os/
+mirrorlist=https://mirrors.almalinux.org/mirrorlist/$releasever/appstream
 enabled=1
 gpgcheck=1
 gpgkey=https://repo.almalinux.org/almalinux/RPM-GPG-KEY-AlmaLinux-$releasever
 
 [crb]
 name=AlmaLinux $releasever - CRB
-baseurl=https://repo.almalinux.org/almalinux/$releasever/CRB/$basearch/os/
+mirrorlist=https://mirrors.almalinux.org/mirrorlist/$releasever/crb
 enabled=1
 gpgcheck=1
 gpgkey=https://repo.almalinux.org/almalinux/RPM-GPG-KEY-AlmaLinux-$releasever
 
 [epel]
 name=Extra Packages for Enterprise Linux $releasever
-baseurl=https://dl.fedoraproject.org/pub/epel/$releasever/Everything/$basearch/
+metalink=https://mirrors.fedoraproject.org/metalink?repo=epel-$releasever&arch=$basearch
 enabled=1
 gpgcheck=1
 gpgkey=https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-$releasever
