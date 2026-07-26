@@ -6,7 +6,11 @@
 # installed in the rootfs, so verify repository metadata during bootstrap.
 [repo-oss]
 name=openSUSE Leap $releasever OSS
-baseurl=https://cdn.opensuse.org/distribution/leap/$releasever/repo/oss/$basearch
+# The official Leap 16 repo index points at cdn.opensuse.org, but GitHub
+# runners have seen stale CDN objects whose size disagrees with repository
+# metadata. Use the MirrorCache metalink for the same repomd.xml so DNF can
+# try another mirror when one backend is out of sync.
+metalink=https://download.opensuse.org/distribution/leap/$releasever/repo/oss/$basearch/repodata/repomd.xml.metalink
 enabled=1
 gpgcheck=0
 repo_gpgcheck=1
