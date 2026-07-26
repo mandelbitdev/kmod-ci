@@ -59,6 +59,9 @@ The default matrix uses real RHEL targets instead of AlmaLinux. AlmaLinux
 targets are still supported by the scripts and can be enabled by overriding the
 `distros` input.
 
+openSUSE Leap 16 is also supported by the scripts, but is not part of the
+default matrix while its repository metadata is too unstable for scheduled CI.
+
 The workflow defaults to `x86_64`. To test arm64, add a separate caller job
 with `arch: arm64` and an explicit `distros` list, for example:
 

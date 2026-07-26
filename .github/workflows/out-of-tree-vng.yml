@@ -37,8 +37,7 @@ name: out-of-tree virtme-ng matrix
           "ubuntu-20.04","ubuntu-22.04","ubuntu-24.04",
           "ubuntu-25.10","ubuntu-26.04","fedora-44",
           "rhel-8","rhel-9","rhel-10",
-          "opensuse-leap-15.6","opensuse-leap-16.0",
-          "opensuse-tumbleweed"]
+          "opensuse-leap-15.6","opensuse-tumbleweed"]
       arch:
         description: Host and guest architecture to test.
         required: false
