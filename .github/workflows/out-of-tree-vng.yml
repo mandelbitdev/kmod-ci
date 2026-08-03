@@ -262,9 +262,11 @@ jobs:
               "${GITHUB_WORKSPACE}/repo" \
               "${{ inputs.guest-script }}"; then
               exit 0
+            else
+              # Capture the payload status in the else branch; after the if
+              # compound completes, bash reports success for the if itself.
+              rc="$?"
             fi
-
-            rc="$?"
 
             if [ "${attempt}" -eq "${payload_attempts}" ]; then
               exit "${rc}"
