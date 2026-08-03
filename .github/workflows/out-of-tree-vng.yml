@@ -34,6 +34,7 @@ name: out-of-tree virtme-ng matrix
         type: string
         default: >-
           ["debian-10","debian-11","debian-12","debian-13",
+          "void-6.6","void-6.18",
           "ubuntu-20.04","ubuntu-22.04","ubuntu-24.04",
           "ubuntu-25.10","ubuntu-26.04","fedora-44",
           "rhel-8","rhel-9","rhel-10",
@@ -85,6 +86,11 @@ jobs:
           # to broken mirrors, so keep x86_64 coverage and skip only arm64.
           - arch: arm64
             distro: opensuse-leap-16.0
+          # The Void bootstrap path is currently validated only on x86_64.
+          - arch: arm64
+            distro: void-6.6
+          - arch: arm64
+            distro: void-6.18
 
     steps:
       - name: Validate architecture
@@ -127,6 +133,7 @@ jobs:
                 busybox-static \
                 ca-certificates \
                 cpio \
+                curl \
                 debian-archive-keyring \
                 dnf \
                 git \
@@ -139,6 +146,7 @@ jobs:
                 ubuntu-keyring \
                 virtiofsd \
                 virtme-ng \
+                xz-utils \
                 zstd; then
               break
             fi

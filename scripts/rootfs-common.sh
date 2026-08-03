@@ -50,7 +50,8 @@ rootfs_kernel_release() {
 
 	case "${kernel}" in
 	# /boot/vmlinuz-<release>, used by the normal kernel image packages in
-	# the current Debian, Ubuntu, Fedora, AlmaLinux, and openSUSE targets
+	# the current Debian, Ubuntu, Void, Fedora, AlmaLinux, and openSUSE
+	# targets
 	*/vmlinuz-*)
 		printf '%s\n' "${kernel##*/vmlinuz-}"
 		;;
@@ -86,6 +87,7 @@ rootfs_has_kernel_headers() {
 
 	# Debian/Ubuntu headers live under /usr/src/linux-headers-<release>
 	# Fedora/AlmaLinux headers live under /usr/src/kernels/<release>
+	# Void exposes its headers through /lib/modules/<release>/build
 	if [ -d "${rootfs}/usr/src/linux-headers-${kernel_release}" ] ||
 		[ -d "${rootfs}/usr/src/kernels/${kernel_release}" ] ||
 		[ -e "${build}" ]; then

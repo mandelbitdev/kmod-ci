@@ -242,7 +242,103 @@ build_ubuntu() {
 		"deb ${ubuntu_security_mirror} ${codename}-security main universe"
 }
 
-mount_dnf_rootfs() {
+build_void_66() {
+	build_void 6.6
+}
+
+build_void_618() {
+	build_void 6.18
+}
+
+build_void() {
+	local kernel_series="$1"
+	local rc
+	local repo="https://repo-default.voidlinux.org/current"
+	local static_arch
+	local static_url
+	local xbps_conf
+	local xbps_work
+	local packages=(
+		base-voidstrap
+		bc
+		binutils
+		bison
+		ca-certificates
+		diffutils
+		elfutils-devel
+		findutils
+		flex
+		gawk
+		gcc
+		git
+		grep
+		iperf3
+		iproute2
+		iputils
+		jq
+		kmod
+		"linux${kernel_series}"
+		"linux${kernel_series}-headers"
+		libnl3-devel
+		make
+		mbedtls-devel
+		nftables
+		openssl-devel
+		pkg-config
+		procps-ng
+		psmisc
+		python3
+		python3-jsonschema
+		python3-yaml
+		rsync
+		sed
+		tcpdump
+	)
+
+	case "${target_arch}" in
+	amd64)
+		static_arch=x86_64
+		;;
+	*)
+		echo "Void targets currently support x86_64 only." >&2
+		exit 1
+		;;
+	esac
+
+	static_url="https://repo-default.voidlinux.org/static/xbps-static-latest.${static_arch}-musl.tar.xz"
+	xbps_work=$(mktemp -d)
+
+	curl -fsSL "${static_url}" -o "${xbps_work}/xbps-static.tar.xz"
+	tar -xf "${xbps_work}/xbps-static.tar.xz" -C "${xbps_work}"
+
+	mkdir -p "${rootfs}/var/db/xbps"
+	# Static XBPS ships the Void repository signing keys. Seed them in
+	# the target rootfs so xbps-install can run non-interactively.
+	cp -a "${xbps_work}/var/db/xbps/keys" "${rootfs}/var/db/xbps/"
+
+	xbps_conf="${xbps_work}/xbps.d"
+	mkdir -p "${xbps_conf}"
+
+	# Void package hooks run inside the installroot too. Python packages
+	# byte-compile during install and need /dev/shm for multiprocessing.
+	mount_installroot
+
+	set +e
+	"${xbps_work}/usr/bin/xbps-install.static" \
+		-S -y \
+		-r "${rootfs}" \
+		-C "${xbps_conf}" \
+		-R "${repo}" \
+		"${packages[@]}"
+	rc=$?
+	set -e
+
+	umount_installroot
+	rm -rf "${xbps_work}"
+	return "${rc}"
+}
+
+mount_installroot() {
 	mkdir -p \
 		"${rootfs}/dev" \
 		"${rootfs}/proc" \
@@ -260,7 +356,7 @@ mount_dnf_rootfs() {
 	mount -t tmpfs tmpfs "${rootfs}/run"
 }
 
-umount_dnf_rootfs() {
+umount_installroot() {
 	umount -R "${rootfs}/run" 2>/dev/null || true
 	umount -R "${rootfs}/sys" 2>/dev/null || true
 	umount -R "${rootfs}/proc" 2>/dev/null || true
@@ -284,9 +380,10 @@ cleanup_failed_rootfs() {
 		return 0
 	fi
 
-	# Retry from a clean installroot. DNF-based builds may leave these
-	# mounted if the failure happens before the normal cleanup path.
-	umount_dnf_rootfs
+	# Retry from a clean installroot. Package-manager based builds may
+	# leave these mounted if the failure happens before the normal cleanup
+	# path.
+	umount_installroot
 
 	if rootfs_has_mounts; then
 		echo "Refusing to remove ${rootfs}: mountpoints still active" >&2
@@ -314,7 +411,7 @@ build_dnf() {
 
 	# RPM kernel package scriptlets run inside the installroot and expect
 	# procfs, sysfs, devtmpfs, and /run to exist.
-	mount_dnf_rootfs
+	mount_installroot
 
 	set +e
 	dnf -y \
@@ -337,7 +434,7 @@ build_dnf() {
 	clean_rc=$?
 	set -e
 
-	umount_dnf_rootfs
+	umount_installroot
 
 	if [ "${rc}" -ne 0 ]; then
 		if [ "${allow_install_failure}" = 1 ]; then
@@ -507,7 +604,7 @@ run_rhel_builder_container() {
 cleanup_rhel_registration() {
 	local rc=0
 
-	umount_dnf_rootfs
+	umount_installroot
 
 	if [ "${rhel_registered:-0}" -eq 1 ]; then
 		# Remove the registered system from subscription management.
@@ -707,6 +804,12 @@ build_target() {
 		;;
 	debian-13)
 		build_debian_13
+		;;
+	void-6.6)
+		build_void_66
+		;;
+	void-6.18)
+		build_void_618
 		;;
 	ubuntu-20.04)
 		build_ubuntu_2004

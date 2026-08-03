@@ -59,6 +59,9 @@ The default matrix uses real RHEL targets instead of AlmaLinux. AlmaLinux
 targets are still supported by the scripts and can be enabled by overriding the
 `distros` input.
 
+Void targets are included to cover maintained 6.6 and 6.18 kernel series from
+a single rolling distro.
+
 openSUSE Leap 16 is also supported by the scripts, but is not part of the
 default matrix while its repository metadata is too unstable for scheduled CI.
 
