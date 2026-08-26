@@ -94,5 +94,6 @@ RHEL targets require these caller repository Actions secrets:
 
 - `RHEL_ORG_ID`
 - `RHEL_ACTIVATION_KEY`
+- `RHEL_10_BETA_X86_64_PRODUCT_CERT` for the `rhel-10-beta` target
 
 The reusable workflow consumes them through `secrets: inherit`.

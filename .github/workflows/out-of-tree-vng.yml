@@ -37,7 +37,7 @@ name: out-of-tree virtme-ng matrix
           "void-6.6","void-6.18",
           "ubuntu-20.04","ubuntu-22.04","ubuntu-24.04",
           "ubuntu-25.10","ubuntu-26.04","fedora-44",
-          "rhel-8","rhel-9","rhel-10",
+          "rhel-8","rhel-9","rhel-10","rhel-10-beta",
           "opensuse-leap-15.6","opensuse-tumbleweed"]
       arch:
         description: Host and guest architecture to test.
@@ -62,6 +62,8 @@ name: out-of-tree virtme-ng matrix
       RHEL_ORG_ID:
         required: false
       RHEL_ACTIVATION_KEY:
+        required: false
+      RHEL_10_BETA_X86_64_PRODUCT_CERT:
         required: false
 
 permissions:
@@ -91,6 +93,9 @@ jobs:
             distro: void-6.6
           - arch: arm64
             distro: void-6.18
+          # The current beta product certificate is architecture-specific.
+          - arch: arm64
+            distro: rhel-10-beta
 
     steps:
       - name: Validate architecture
@@ -177,8 +182,9 @@ jobs:
           # Red Hat CDN and generate the rootfs.
           RHEL_ORG_ID: ${{ secrets.RHEL_ORG_ID }}
           RHEL_ACTIVATION_KEY: ${{ secrets.RHEL_ACTIVATION_KEY }}
+          RHEL_10_BETA_X86_64_PRODUCT_CERT: ${{ secrets.RHEL_10_BETA_X86_64_PRODUCT_CERT }}
         run: |
-          preserve_env=KMOD_CI_ARCH,RHEL_ORG_ID,RHEL_ACTIVATION_KEY
+          preserve_env=KMOD_CI_ARCH,RHEL_ORG_ID,RHEL_ACTIVATION_KEY,RHEL_10_BETA_X86_64_PRODUCT_CERT
           sudo --preserve-env="${preserve_env}" \
             ./kmod-ci/scripts/rootfs-build.sh \
             "${{ matrix.distro }}" \
