@@ -549,6 +549,56 @@ build_alma() {
 	build_dnf "${repo_dir}" "${releasever}" 1 "${packages[@]}"
 }
 
+build_centos_stream() {
+	local releasever="$1"
+	local repo_dir
+	local packages=(
+		bc
+		binutils
+		bison
+		ca-certificates
+		diffutils
+		elfutils-libelf-devel
+		findutils
+		flex
+		gawk
+		gcc
+		git
+		glibc-devel
+		grep
+		iperf3
+		iproute
+		iputils
+		jq
+		kernel
+		kernel-devel
+		kernel-headers
+		kmod
+		libnl3-devel
+		make
+		mbedtls-devel
+		nftables
+		openssl-devel
+		pkgconf-pkg-config
+		procps-ng
+		psmisc
+		python3
+		python3-jsonschema
+		python3-pyyaml
+		rsync
+		sed
+		systemd
+		systemd-udev
+		tcpdump
+	)
+
+	repo_dir=$(mktemp -d)
+	cp "${script_dir}/../repos/centos-stream/centos-stream.repo" "${repo_dir}/"
+	cp "${script_dir}/../repos/epel/epel.repo" "${repo_dir}/"
+
+	build_dnf "${repo_dir}" "${releasever}" 1 "${packages[@]}"
+}
+
 require_rhel_secret() {
 	local name="$1"
 
@@ -880,6 +930,9 @@ build_target() {
 		;;
 	alma-10)
 		build_alma 10
+		;;
+	centos-stream-10)
+		build_centos_stream 10
 		;;
 	rhel-8)
 		build_rhel 8

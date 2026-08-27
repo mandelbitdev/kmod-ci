@@ -55,9 +55,10 @@ jobs:
     secrets: inherit
 ```
 
-The default matrix uses real RHEL targets instead of AlmaLinux. AlmaLinux
-targets are still supported by the scripts and can be enabled by overriding the
-`distros` input.
+The default matrix uses real RHEL targets instead of AlmaLinux, plus CentOS
+Stream 10 as the public early signal for upcoming Enterprise Linux kernel ABI
+changes. AlmaLinux targets are still supported by the scripts and can be
+enabled by overriding the `distros` input.
 
 Void targets are included to cover maintained 6.6 and 6.18 kernel series from
 a single rolling distro.
