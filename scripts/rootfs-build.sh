@@ -63,10 +63,11 @@ build_debian_10() {
 }
 
 build_debian_11() {
+	# Use the archive for Bullseye itself and pin its final security state.
 	build_debian \
 		bullseye \
-		http://deb.debian.org/debian \
-		http://security.debian.org/debian-security \
+		http://archive.debian.org/debian \
+		http://snapshot.debian.org/archive/debian-security/20260831T211304Z \
 		bullseye-security
 }
 
@@ -128,9 +129,8 @@ build_debian() {
 		tcpdump
 	)
 
-	if [ "${codename}" = "buster" ]; then
-		# Debian 10 is served from archive.debian.org, where old
-		# Release files are intentionally expired.
+	if [ "${codename}" = "buster" ] || [ "${codename}" = "bullseye" ]; then
+		# archived Debian releases have intentionally expired Release files.
 		mmdebstrap_options+=('--aptopt=Acquire::Check-Valid-Until "false"')
 	fi
 
