@@ -971,6 +971,25 @@ build_target() {
 	esac
 }
 
+validate_rootfs() {
+	local kernel
+	local kernel_release
+
+	kernel=$(rootfs_find_kernel_image "${rootfs}")
+
+	if [ -z "${kernel}" ]; then
+		echo "No kernel image found in ${rootfs}" >&2
+		return 1
+	fi
+
+	kernel_release=$(rootfs_kernel_release "${kernel}")
+
+	if ! rootfs_has_kernel_headers "${rootfs}" "${kernel_release}"; then
+		echo "Missing headers for ${kernel_release}" >&2
+		return 1
+	fi
+}
+
 build_with_retries() {
 	local attempt rc
 
@@ -993,6 +1012,7 @@ build_with_retries() {
 		(
 			set -e
 			build_target
+			validate_rootfs
 		)
 		rc=$?
 		set -e
@@ -1013,19 +1033,9 @@ build_with_retries() {
 
 build_with_retries
 
+# the successful attempt has already validated these paths.
 kernel=$(rootfs_find_kernel_image "${rootfs}")
-
-if [ -z "${kernel}" ]; then
-	echo "No kernel image found in ${rootfs}" >&2
-	exit 1
-fi
-
 kernel_release=$(rootfs_kernel_release "${kernel}")
-
-if ! rootfs_has_kernel_headers "${rootfs}" "${kernel_release}"; then
-	echo "Missing headers for ${kernel_release}" >&2
-	exit 1
-fi
 
 echo "Built ${distro} rootfs at ${rootfs}"
 echo "Kernel: ${kernel_release}"
