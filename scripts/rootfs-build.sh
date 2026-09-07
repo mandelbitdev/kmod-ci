@@ -683,11 +683,20 @@ build_rhel() {
 	local baseos_repo
 	local appstream_repo
 	local crb_repo
+	local kernel_devel_package="kernel-devel"
+	local packages
 	local repo_dir
 	local repo_output
 	local register_output
 	local repo_args=()
-	local packages=(
+
+	# Use the RHEL9+ meta-package to keep kernel-core and the build headers
+	# on the same version while BaseOS and AppStream are synchronizing.
+	if [ "${releasever}" -ge 9 ]; then
+		kernel_devel_package="kernel-devel-matched"
+	fi
+
+	packages=(
 		bc
 		binutils
 		bison
@@ -706,7 +715,7 @@ build_rhel() {
 		iputils
 		jq
 		kernel
-		kernel-devel
+		"${kernel_devel_package}"
 		kernel-headers
 		kmod
 		libnl3-devel
