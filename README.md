@@ -63,6 +63,10 @@ enabled by overriding the `distros` input.
 Void targets are included to cover maintained 6.6 and 6.18 kernel series from
 a single rolling distro.
 
+Ubuntu targets use the generic kernel by default. The `ubuntu-26.04-aws`
+target installs `linux-image-aws` and `linux-headers-aws` on Ubuntu 26.04,
+providing separate AWS kernel coverage on x86_64 and arm64.
+
 openSUSE Leap 16 is also supported by the scripts, but is not part of the
 default matrix while its repository metadata is too unstable for scheduled CI.
 

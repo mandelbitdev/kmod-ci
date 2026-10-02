@@ -157,7 +157,7 @@ build_debian() {
 }
 
 build_ubuntu_2004() {
-	build_ubuntu focal python3.9
+	build_ubuntu focal generic python3.9
 }
 
 build_ubuntu_2204() {
@@ -176,9 +176,14 @@ build_ubuntu_2604() {
 	build_ubuntu resolute
 }
 
+build_ubuntu_2604_aws() {
+	build_ubuntu resolute aws
+}
+
 build_ubuntu() {
 	local codename="$1"
-	local extra_python="${2:-}"
+	local kernel_flavor="${2:-generic}"
+	local extra_python="${3:-}"
 	local include
 	local ubuntu_keyring="/usr/share/keyrings/ubuntu-archive-keyring.gpg"
 	local packages=(
@@ -201,8 +206,8 @@ build_ubuntu() {
 		libnl-3-dev
 		libnl-genl-3-dev
 		libssl-dev
-		linux-headers-generic
-		linux-image-generic
+		"linux-headers-${kernel_flavor}"
+		"linux-image-${kernel_flavor}"
 		make
 		nftables
 		pkg-config
@@ -927,6 +932,9 @@ build_target() {
 		;;
 	ubuntu-26.04)
 		build_ubuntu_2604
+		;;
+	ubuntu-26.04-aws)
+		build_ubuntu_2604_aws
 		;;
 	fedora-44)
 		build_fedora_44
