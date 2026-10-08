@@ -64,8 +64,9 @@ Void targets are included to cover maintained 6.6 and 6.18 kernel series from
 a single rolling distro.
 
 Ubuntu targets use the generic kernel by default. The `ubuntu-26.04-aws`
-target installs `linux-image-aws` and `linux-headers-aws` on Ubuntu 26.04,
-providing separate AWS kernel coverage on x86_64 and arm64.
+and `ubuntu-26.04-azure` targets cover the AWS and Azure kernels separately.
+They install the corresponding `linux-image-<flavor>` and
+`linux-headers-<flavor>` metapackages on Ubuntu 26.04.
 
 openSUSE Leap 16 is also supported by the scripts, but is not part of the
 default matrix while its repository metadata is too unstable for scheduled CI.

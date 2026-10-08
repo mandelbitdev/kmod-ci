@@ -180,6 +180,10 @@ build_ubuntu_2604_aws() {
 	build_ubuntu resolute aws
 }
 
+build_ubuntu_2604_azure() {
+	build_ubuntu resolute azure
+}
+
 build_ubuntu() {
 	local codename="$1"
 	local kernel_flavor="${2:-generic}"
@@ -935,6 +939,9 @@ build_target() {
 		;;
 	ubuntu-26.04-aws)
 		build_ubuntu_2604_aws
+		;;
+	ubuntu-26.04-azure)
+		build_ubuntu_2604_azure
 		;;
 	fedora-44)
 		build_fedora_44
