@@ -63,10 +63,11 @@ enabled by overriding the `distros` input.
 Void targets are included to cover maintained 6.6 and 6.18 kernel series from
 a single rolling distro.
 
-Ubuntu targets use the generic kernel by default. The `ubuntu-26.04-aws`
-and `ubuntu-26.04-azure` targets cover the AWS and Azure kernels separately.
-They install the corresponding `linux-image-<flavor>` and
-`linux-headers-<flavor>` metapackages on Ubuntu 26.04.
+Ubuntu targets use the generic kernel by default. The `ubuntu-26.04-aws`,
+`ubuntu-26.04-azure`, `ubuntu-26.04-oracle`, `ubuntu-26.04-ibm`, and
+`ubuntu-26.04-gcp` targets cover the cloud kernels separately. They install
+the corresponding `linux-image-<flavor>` and `linux-headers-<flavor>`
+metapackages on Ubuntu 26.04. The IBM target supports x86_64 only.
 
 openSUSE Leap 16 is also supported by the scripts, but is not part of the
 default matrix while its repository metadata is too unstable for scheduled CI.

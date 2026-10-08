@@ -184,6 +184,23 @@ build_ubuntu_2604_azure() {
 	build_ubuntu resolute azure
 }
 
+build_ubuntu_2604_oracle() {
+	build_ubuntu resolute oracle
+}
+
+build_ubuntu_2604_ibm() {
+	if [ "${target_arch}" != amd64 ]; then
+		echo "Ubuntu 26.04 IBM kernels only support amd64." >&2
+		exit 1
+	fi
+
+	build_ubuntu resolute ibm
+}
+
+build_ubuntu_2604_gcp() {
+	build_ubuntu resolute gcp
+}
+
 build_ubuntu() {
 	local codename="$1"
 	local kernel_flavor="${2:-generic}"
@@ -943,6 +960,15 @@ build_target() {
 		;;
 	ubuntu-26.04-azure)
 		build_ubuntu_2604_azure
+		;;
+	ubuntu-26.04-oracle)
+		build_ubuntu_2604_oracle
+		;;
+	ubuntu-26.04-ibm)
+		build_ubuntu_2604_ibm
+		;;
+	ubuntu-26.04-gcp)
+		build_ubuntu_2604_gcp
 		;;
 	fedora-44)
 		build_fedora_44

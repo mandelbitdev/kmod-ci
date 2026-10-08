@@ -29,7 +29,10 @@ debian-10)
 	force_9p=1
 	echo "${distro} requires 9p rootfs"
 	;;
-centos-stream-10|debian-11|debian-12|debian-13|void-6.6|void-6.18|ubuntu-20.04|ubuntu-22.04|ubuntu-24.04|ubuntu-25.10|ubuntu-26.04|ubuntu-26.04-aws|ubuntu-26.04-azure|fedora-44)
+centos-stream-10|debian-11|debian-12|debian-13|void-6.6|void-6.18|\
+ubuntu-20.04|ubuntu-22.04|ubuntu-24.04|ubuntu-25.10|ubuntu-26.04|\
+ubuntu-26.04-aws|ubuntu-26.04-azure|ubuntu-26.04-oracle|\
+ubuntu-26.04-ibm|ubuntu-26.04-gcp|fedora-44)
 	;;
 alma-8|alma-9|alma-10|rhel-8|rhel-9|rhel-10|rhel-10-beta|opensuse-leap-15.6|opensuse-leap-16.0|opensuse-tumbleweed)
 	;;
