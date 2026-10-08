@@ -817,8 +817,9 @@ build_rhel() {
 	cp /etc/yum.repos.d/redhat.repo "${repo_dir}/redhat.repo"
 	cp "${script_dir}/../repos/epel/epel.repo" "${repo_dir}/epel.repo"
 
+	# Allow older installable packages while RHEL repositories synchronize.
 	DNF_DISABLE_SUBSCRIPTION_PLUGIN=1 \
-		build_dnf "${repo_dir}" "${releasever}" 1 "${packages[@]}"
+		build_dnf "${repo_dir}" "${releasever}" 1 --nobest "${packages[@]}"
 
 	trap - EXIT
 	cleanup_rhel_registration
